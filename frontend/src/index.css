@@ -1,0 +1,169 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-mint-lightest: #C8EEE8;
+  --color-mint-light:    #A8E4DC;
+  --color-teal-soft:     #80D5CE;
+  --color-teal:          #5EC4C4;
+  --color-teal-mid:      #4EB0C8;
+  --color-blue-mid:      #6898CC;
+  --color-blue-slate:    #7882CC;
+  --color-indigo:        #7070CC;
+  --color-indigo-deep:   #6060C0;
+  --color-purple-mid:    #5050B4;
+  --color-purple:        #4040A8;
+  --color-navy:          #302090;
+  --color-navy-dark:     #201470;
+  --color-navy-darkest:  #100A50;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, sans-serif;
+  background-color: #f8fafc;
+  color: var(--color-navy-darkest);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #f1f5f9; }
+::-webkit-scrollbar-thumb { background: var(--color-teal-soft); border-radius: 3px; }
+
+/* Leaflet overrides */
+.leaflet-container { z-index: 1; }
+.leaflet-popup-content-wrapper { border-radius: 12px; box-shadow: 0 4px 20px rgba(16,10,80,0.15); }
+
+/* Pulsing blue dot for user location */
+@keyframes pulse-ring {
+  0%   { transform: scale(0.8); opacity: 1; }
+  100% { transform: scale(2); opacity: 0; }
+}
+.user-location-dot { position: relative; }
+.user-location-dot::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  background: rgba(78,176,200,0.4);
+  animation: pulse-ring 1.5s ease-out infinite;
+}
+
+/* Skeleton loader */
+@keyframes skeleton-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s infinite;
+  border-radius: 8px;
+}
+
+/* CSS spinner */
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner {
+  width: 32px; height: 32px;
+  border: 3px solid var(--color-mint-lightest);
+  border-top-color: var(--color-indigo-deep);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+/* Slot pill buttons */
+.slot-pill {
+  padding: 6px 14px;
+  border-radius: 9999px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 2px solid transparent;
+}
+.slot-pill.available {
+  background: var(--color-teal-mid);
+  color: white;
+}
+.slot-pill.available:hover {
+  background: var(--color-indigo-deep);
+  transform: translateY(-1px);
+}
+.slot-pill.selected {
+  background: var(--color-indigo-deep);
+  border-color: var(--color-navy-darkest);
+  color: white;
+  transform: translateY(-1px);
+}
+.slot-pill.booked {
+  background: #e5e7eb;
+  color: #9ca3af;
+  text-decoration: line-through;
+  cursor: not-allowed;
+}
+
+/* Card hover effect */
+.card-hover {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(16,10,80,0.12);
+}
+
+/* Blood group badge colors */
+.bg-A\+  { background: #fee2e2; color: #991b1b; }
+.bg-A-   { background: #fce7f3; color: #9d174d; }
+.bg-B\+  { background: #e0e7ff; color: #3730a3; }
+.bg-B-   { background: #ede9fe; color: #5b21b6; }
+.bg-O\+  { background: #dcfce7; color: #166534; }
+.bg-O-   { background: #d1fae5; color: #065f46; }
+.bg-AB\+ { background: #fef9c3; color: #854d0e; }
+.bg-AB\- { background: #ffedd5; color: #9a3412; }
+
+/* Urgency badge */
+.urgency-critical { background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; }
+.urgency-urgent   { background: #fef3c7; color: #d97706; border: 1px solid #fcd34d; }
+.urgency-planned  { background: #c8eee8; color: #0d7377; border: 1px solid #80d5ce; }
+
+/* Glass card */
+.glass-card {
+  background: rgba(200, 238, 232, 0.15);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(200, 238, 232, 0.3);
+}
+
+/* Gradient hero */
+.hero-gradient {
+  background: linear-gradient(135deg, #100A50 0%, #302090 40%, #4EB0C8 100%);
+}
+
+/* Reconnecting banner animation */
+@keyframes reconnecting-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+.reconnecting { animation: reconnecting-pulse 1.5s ease-in-out infinite; }
+
+/* Fade-in animation (used by modals, panels) */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fadeIn { animation: fadeIn 0.25s ease-out both; }
+
+/* Tailwind custom layer utilities that need @apply */
+@layer utilities {
+  .text-dn-teal        { color: var(--color-teal); }
+  .text-dn-teal-mid    { color: var(--color-teal-mid); }
+  .text-dn-mint-light  { color: var(--color-mint-light); }
+  .text-dn-indigo-deep { color: var(--color-indigo-deep); }
+  .bg-dn-teal          { background-color: var(--color-teal); }
+  .bg-dn-indigo-deep   { background-color: var(--color-indigo-deep); }
+  .border-dn-teal      { border-color: var(--color-teal); }
+  .border-dn-teal-mid  { border-color: var(--color-teal-mid); }
+  .border-dn-mint-light { border-color: var(--color-mint-lightest); }
+}
