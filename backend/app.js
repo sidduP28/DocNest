@@ -36,6 +36,7 @@ app.use('/api/patient',        require('./routes/patientAuth'));
 app.use('/api/hospital',       require('./routes/hospitalAuth'));
 app.use('/api/blood-requests', require('./routes/bloodRequests'));
 app.use('/api/appointments',   require('./routes/appointments'));
+app.use('/api/reviews',        require('./routes/reviews'));
 app.get('/api/health', (_req, res) => res.json({ status: 'ok', time: new Date() }));
 
 // ─── MongoDB (connect once, reuse across serverless calls) ────────────────────

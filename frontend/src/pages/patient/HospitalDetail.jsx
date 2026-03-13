@@ -9,9 +9,11 @@ import PatientNavbar from '../../components/shared/PatientNavbar';
 import DoctorSlotPicker from '../../components/patient/DoctorSlotPicker';
 import WaitTimeBadge from '../../components/patient/WaitTimeBadge';
 import { MapPin, Phone, Star, ArrowLeft } from 'lucide-react';
+import StarRating from '../../components/patient/StarRating';
+import { format } from 'date-fns';
 
 const API = import.meta.env.VITE_API_BASE_URL || '';
-const TABS = ['Doctors', 'Tests & Prices', 'About'];
+const TABS = ['Doctors', 'Tests & Prices', 'Reviews', 'About'];
 const TEST_LABELS = { bloodTest: 'Blood Test', MRI: 'MRI', xRay: 'X-Ray', ECG: 'ECG', urineCulture: 'Urine Culture', ctScan: 'CT Scan' };
 
 export default function HospitalDetail() {
@@ -24,6 +26,11 @@ export default function HospitalDetail() {
   const [waitData, setWaitData] = useState({});
   const [tab, setTab] = useState(0);
   const [loading, setLoading] = useState(true);
+
+  // Reviews state
+  const [reviewsData, setReviewsData] = useState({ reviews: [], totalCount: 0, averageHospitalRating: 0, currentPage: 1, totalPages: 1 });
+  const [reviewDoctorFilter, setReviewDoctorFilter] = useState('');
+  const [loadingReviews, setLoadingReviews] = useState(false);
 
   async function loadData() {
     try {
@@ -57,6 +64,26 @@ export default function HospitalDetail() {
     }
     load();
   }, [id]);
+
+  async function loadReviews(page = 1, docId = '') {
+    setLoadingReviews(true);
+    try {
+      const url = `${API}/api/reviews/hospital/${id}?page=${page}&limit=5${docId ? `&doctorId=${docId}` : ''}`;
+      const res = await axios.get(url);
+      if (page === 1) {
+        setReviewsData(res.data);
+      } else {
+        setReviewsData(prev => ({ ...res.data, reviews: [...prev.reviews, ...res.data.reviews] }));
+      }
+    } catch (err) {}
+    setLoadingReviews(false);
+  }
+
+  useEffect(() => {
+    if (tab === 2) {
+      loadReviews(1, reviewDoctorFilter);
+    }
+  }, [tab, reviewDoctorFilter, id]);
 
   useEffect(() => {
     if (!socket || !id) return;
@@ -208,8 +235,110 @@ export default function HospitalDetail() {
           </div>
         )}
 
-        {/* ABOUT TAB */}
+        {/* REVIEWS TAB */}
         {tab === 2 && (
+          <div className="space-y-4">
+            {/* Hospital Summary */}
+            <div className="bg-white rounded-2xl border p-6 flex flex-col md:flex-row items-center gap-6" style={{ borderColor: '#C8EEE8' }}>
+              <div className="text-center md:text-left">
+                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-1">Overall Rating</p>
+                <div className="flex items-center gap-3 justify-center md:justify-start">
+                  <span className="text-4xl font-black" style={{ color: '#100A50' }}>{reviewsData.averageHospitalRating.toFixed(1)}</span>
+                  <div>
+                    <StarRating value={reviewsData.averageHospitalRating} size={20} readOnly />
+                    <p className="text-xs text-gray-500 mt-1">{reviewsData.totalCount} verified reviews</p>
+                  </div>
+                </div>
+              </div>
+              <div className="hidden md:block w-px bg-gray-200 h-16 mx-4"></div>
+              <div className="flex-1 w-full">
+                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-3">Filter by Doctor</p>
+                <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                  <button onClick={() => setReviewDoctorFilter('')}
+                    className={`shrink-0 px-4 py-1.5 rounded-full text-xs font-bold transition-all border ${!reviewDoctorFilter ? 'bg-teal-50 text-teal-700 border-teal-200' : 'bg-white text-gray-500 border-gray-200'}`}>
+                    All Doctors
+                  </button>
+                  {hospital.doctors?.map(d => (
+                    <button key={d._id} onClick={() => setReviewDoctorFilter(d._id)}
+                      className={`shrink-0 px-4 py-1.5 rounded-full text-xs font-bold transition-all border ${reviewDoctorFilter === d._id ? 'bg-teal-50 text-teal-700 border-teal-200' : 'bg-white text-gray-500 border-gray-200'}`}>
+                      Dr. {d.name.split(' ')[0]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Reviews List */}
+            <div className="space-y-3">
+              {loadingReviews && reviewsData.reviews.length === 0 ? (
+                <div className="text-center py-8 text-gray-400 text-sm">Loading reviews...</div>
+              ) : reviewsData.reviews.length === 0 ? (
+                <div className="bg-white rounded-2xl border p-8 text-center" style={{ borderColor: '#C8EEE8' }}>
+                  <Star size={40} className="mx-auto mb-3 text-gray-300" />
+                  <p className="text-gray-400 text-sm">No reviews yet for this selection.</p>
+                  <p className="text-gray-400 text-xs mt-1">Be the first to share your experience after your visit.</p>
+                </div>
+              ) : (
+                reviewsData.reviews.map(r => (
+                  <div key={r._id} className="bg-white rounded-2xl border p-5" style={{ borderColor: '#C8EEE8' }}>
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        {/* Name formatted as Firstname L. */}
+                        <h4 className="font-bold text-sm" style={{ color: '#100A50' }}>
+                          {r.userName.split(' ')[0]} {r.userName.split(' ')[1] ? r.userName.split(' ')[1][0] + '.' : ''}
+                        </h4>
+                        <p className="text-xs text-gray-400">{format(new Date(r.createdAt), 'dd MMM yyyy')} · Dr. {r.doctorName}</p>
+                      </div>
+                      <span className="text-[10px] px-2 py-1 rounded-full font-bold bg-teal-50 text-teal-700" style={{ background: '#eefcf9', color: '#0d7377' }}>
+                        ✓ Verified Visit
+                      </span>
+                    </div>
+                    
+                    <div className="flex gap-4 mb-3">
+                      <div>
+                        <p className="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">Doctor</p>
+                        <StarRating value={r.doctorRating} size={14} readOnly />
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">Hospital</p>
+                        <StarRating value={r.hospitalRating} size={14} readOnly />
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">Wait</p>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold capitalize ${r.waitTimeExperience === 'fast' ? 'text-green-700 bg-green-50' : (r.waitTimeExperience === 'okay' ? 'text-amber-700 bg-amber-50' : 'text-red-700 bg-red-50')}`}>
+                          {r.waitTimeExperience}
+                        </span>
+                      </div>
+                    </div>
+
+                    {r.comment && (
+                      <p className="text-sm text-gray-600 italic bg-gray-50 p-3 rounded-xl border border-gray-100">
+                        "{r.comment}"
+                      </p>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Load More */}
+            {reviewsData.currentPage < reviewsData.totalPages && (
+              <div className="text-center pt-2">
+                <button
+                  onClick={() => loadReviews(reviewsData.currentPage + 1, reviewDoctorFilter)}
+                  disabled={loadingReviews}
+                  className="px-6 py-2 rounded-full text-sm font-bold border transition-colors hover:bg-gray-50"
+                  style={{ color: '#6060C0', borderColor: '#6060C0' }}
+                >
+                  {loadingReviews ? 'Loading...' : 'Load more reviews'}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ABOUT TAB */}
+        {tab === 3 && (
           <div className="space-y-4">
             <div className="bg-white rounded-2xl border p-5" style={{ borderColor: '#C8EEE8' }}>
               <h3 className="font-bold mb-3" style={{ color: '#100A50' }}>Hospital Information</h3>

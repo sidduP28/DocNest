@@ -166,6 +166,19 @@ router.patch('/:id/complete', verifyHospToken, async (req, res) => {
     const appt = await Appointment.findByIdAndUpdate(
       req.params.id, { status: 'completed' }, { new: true }
     ).lean();
+    if (!appt) return res.status(404).json({ error: 'Not found' });
+    
+    // Emit event to patient so they get the review prompt
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`user:${appt.userId}`).emit('appointmentCompleted', {
+        appointmentId: appt._id,
+        doctorName: appt.doctorName,
+        hospitalName: appt.hospitalName,
+        specialty: appt.specialty
+      });
+    }
+    
     return res.json(appt);
   } catch (err) {
     return res.status(500).json({ error: 'Server error' });

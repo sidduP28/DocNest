@@ -13,6 +13,8 @@ const doctorSchema = new mongoose.Schema({
   qualification: { type: String, default: '' },
   slots:         [slotSchema],
   offlineWalkIns: { type: Number, default: 0 },
+  doctorRating: { type: Number, default: 0 },
+  doctorTotalReviews: { type: Number, default: 0 },
   approvalStatus: {
     type: String,
     enum: ['pending_approval', 'approved', 'rejected'],

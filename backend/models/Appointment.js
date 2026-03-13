@@ -16,6 +16,7 @@ const appointmentSchema = new mongoose.Schema({
     default: 'booked',
   },
   checkedIn: { type: Boolean, default: false },
+  hasReviewed: { type: Boolean, default: false },
   conflictStatus: {
     type: String,
     enum: ['unaffected', 'notified', 'rescheduled', 'switched', 'cancelled', 'waiting'],

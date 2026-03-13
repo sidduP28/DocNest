@@ -7,8 +7,9 @@ import PatientNavbar from '../../components/shared/PatientNavbar';
 import HospitalCard from '../../components/patient/HospitalCard';
 import BloodSOSModal from '../../components/patient/BloodSOSModal';
 import DoctorEmergencyModal from '../../components/patient/DoctorEmergencyModal';
+import ReviewPromptModal from '../../components/patient/ReviewPromptModal';
 import { haversine } from '../../utils/haversine';
-import { Calendar, Droplets, Heart, CheckCircle, LogIn } from 'lucide-react';
+import { Calendar, Droplets, Heart, CheckCircle, LogIn, Star } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format, isToday } from 'date-fns';
 
@@ -24,6 +25,8 @@ export default function PatientDashboard() {
   const [appointments, setAppointments] = useState([]);
   const [bloodSOS, setBloodSOS] = useState(null);
   const [emergencyEvent, setEmergencyEvent] = useState(null);
+  const [reviewPromptAppt, setReviewPromptAppt] = useState(null);
+  const [skipCounts, setSkipCounts] = useState({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -40,7 +43,9 @@ export default function PatientDashboard() {
           }),
         ]);
         setHospitals(hospRes.data.slice(0, 3));
-        setAppointments(apptRes.data.filter((a) => a.status !== 'cancelled' && a.status !== 'completed'));
+        const activeAppts = apptRes.data.filter((a) => a.status !== 'cancelled');
+        // Filter out completed ones unless they need review (keep in logic or let them be shown? User request says: "If appointment.status === 'completed' AND appointment.hasReviewed === false: Show a 'Leave a Review' button below the appointment card". Let's show completed unreviewed appts.
+        setAppointments(activeAppts.filter(a => a.status !== 'completed' || !a.hasReviewed));
       } catch { }
       setLoading(false);
     }
@@ -58,10 +63,20 @@ export default function PatientDashboard() {
     function onDoctorReturned(data) {
       toast.success(`Good news! Dr. ${data.doctorName} is available again. Your original slot is reinstated.`, { duration: 6000 });
     }
+    function onAppointmentCompleted(data) {
+      setAppointments((prev) => prev.map((a) => a._id === data.appointmentId ? { ...a, status: 'completed' } : a));
+      setReviewPromptAppt(data);
+    }
     on('bloodSOS', onBloodSOS);
     on('doctorEmergency', onDoctorEmergency);
     on('doctorReturned', onDoctorReturned);
-    return () => { off('bloodSOS', onBloodSOS); off('doctorEmergency', onDoctorEmergency); off('doctorReturned', onDoctorReturned); };
+    on('appointmentCompleted', onAppointmentCompleted);
+    return () => { 
+      off('bloodSOS', onBloodSOS);
+      off('doctorEmergency', onDoctorEmergency);
+      off('doctorReturned', onDoctorReturned);
+      off('appointmentCompleted', onAppointmentCompleted);
+    };
   }, [patient]);
 
   // Polling fallback for Vercel Serverless (No WebSockets)
@@ -110,6 +125,23 @@ export default function PatientDashboard() {
     } catch { toast.error('Check-in failed'); }
   }
 
+  const handleReviewSkip = () => {
+    if (!reviewPromptAppt) return;
+    const id = reviewPromptAppt.appointmentId || reviewPromptAppt._id;
+    setSkipCounts(prev => ({ ...prev, [id]: (prev[id] || 0) + 1 }));
+    setReviewPromptAppt(null);
+  };
+
+  const handleReviewSuccess = () => {
+    if (reviewPromptAppt) {
+      const id = reviewPromptAppt.appointmentId || reviewPromptAppt._id;
+      setAppointments((prev) => prev.map((a) => a._id === id ? { ...a, hasReviewed: true, status: 'completed' } : a));
+      // Remove it from display entirely if that's what we do with completed ones, but let's just keep it or badge it. Filtering on mount hides it.
+      setAppointments(prev => prev.filter(a => a._id !== id));
+      setReviewPromptAppt(null);
+    }
+  };
+
   const bloodGroupStyle = patient?.bloodGroup ? { bg: BG_COLORS[patient.bloodGroup] || '#f0f0f0', text: BG_TEXT[patient.bloodGroup] || '#333' } : null;
 
   return (
@@ -119,6 +151,13 @@ export default function PatientDashboard() {
       {/* Blood SOS modal */}
       {bloodSOS && <BloodSOSModal request={bloodSOS} onClose={() => setBloodSOS(null)} />}
       {emergencyEvent && <DoctorEmergencyModal event={emergencyEvent} onClose={() => setEmergencyEvent(null)} />}
+      {reviewPromptAppt && (skipCounts[reviewPromptAppt.appointmentId || reviewPromptAppt._id] || 0) < 3 && (
+        <ReviewPromptModal 
+          appointment={reviewPromptAppt} 
+          onClose={handleReviewSkip} 
+          onSuccess={handleReviewSuccess} 
+        />
+      )}
 
       <div className="max-w-4xl mx-auto px-4 py-6">
         {/* Welcome banner */}
@@ -187,17 +226,30 @@ export default function PatientDashboard() {
                   </div>
                   <div className="flex items-center gap-2">
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize`}
-                      style={{ background: a.status === 'booked' ? '#ede9fe' : '#dcfce7', color: a.status === 'booked' ? '#5b21b6' : '#166534' }}>
+                      style={{ background: a.status === 'booked' ? '#ede9fe' : (a.status === 'completed' ? '#dcfce7' : '#e0f2fe'), color: a.status === 'booked' ? '#5b21b6' : (a.status === 'completed' ? '#166534' : '#0369a1') }}>
                       {a.status}
                     </span>
-                    {isToday(new Date(a.slot)) && !a.checkedIn && (
+                    {isToday(new Date(a.slot)) && !a.checkedIn && a.status !== 'completed' && (
                       <button onClick={() => handleCheckin(a._id)}
                         className="text-xs px-3 py-1.5 rounded-full text-white font-semibold flex items-center gap-1"
                         style={{ background: '#4EB0C8' }}>
                         <LogIn size={11} /> Check In
                       </button>
                     )}
-                    {a.checkedIn && <CheckCircle size={16} style={{ color: '#5EC4C4' }} />}
+                    {a.checkedIn && a.status !== 'completed' && <CheckCircle size={16} style={{ color: '#5EC4C4' }} />}
+                    
+                    {a.status === 'completed' && !a.hasReviewed && (
+                      <button onClick={() => setReviewPromptAppt(a)}
+                        className="text-xs px-3 py-1.5 rounded-full font-semibold border"
+                        style={{ color: '#5EC4C4', borderColor: '#5EC4C4' }}>
+                        Leave a Review
+                      </button>
+                    )}
+                    {a.status === 'completed' && a.hasReviewed && (
+                      <span className="text-[10px] px-2 py-1 rounded-full font-bold bg-green-100 text-green-700 flex items-center gap-1">
+                        <CheckCircle size={10} /> Reviewed
+                      </span>
+                    )}
                   </div>
                 </div>
               ))}
