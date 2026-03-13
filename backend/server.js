@@ -15,7 +15,14 @@ const path = require('path');
 // Initialize firebase-admin early so middleware can use it
 const admin = require('firebase-admin');
 if (!admin.apps.length) {
-  const serviceAccount = require('./firebase-admin-sdk.json');
+  let serviceAccount;
+  if (process.env.FIREBASE_ADMIN_SDK_JSON) {
+    // Production: JSON string stored in environment variable (Render, Vercel, etc.)
+    serviceAccount = JSON.parse(process.env.FIREBASE_ADMIN_SDK_JSON);
+  } else {
+    // Local dev: JSON file on disk
+    serviceAccount = require('./firebase-admin-sdk.json');
+  }
   admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 }
 
