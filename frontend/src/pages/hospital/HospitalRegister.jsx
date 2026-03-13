@@ -91,7 +91,11 @@ export default function HospitalRegister() {
       toast.success('Registration submitted!');
       navigate('/hospital/login', { state: { message: 'Registration submitted. Seeded demo hospitals are pre-verified and can log in immediately.' } });
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Registration failed');
+      if (!err.response) {
+        toast.error('Server unavailable. Your Firebase account was created but hospital profile could not be saved. Please contact support.');
+      } else {
+        toast.error(err.response?.data?.error || 'Registration failed');
+      }
     }
     setLoading(false);
   }

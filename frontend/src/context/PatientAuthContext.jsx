@@ -31,15 +31,23 @@ export function PatientAuthProvider({ children }) {
   }, []);
 
   async function login(email, password) {
+    // Step 1: Firebase auth (must succeed)
+    let cred;
     try {
-      const cred = await signInWithEmailAndPassword(auth, email, password);
-      const res = await axios.get(`${API}/api/patient/profile?uid=${cred.user.uid}`);
-      setPatient(res.data);
-      return { success: true };
+      cred = await signInWithEmailAndPassword(auth, email, password);
     } catch (err) {
       console.error('Firebase Login Error:', err.code, err.message);
       return { success: false, error: getFirebaseError(err.code) };
     }
+    // Step 2: Fetch profile (best-effort — don't block login if API is down)
+    try {
+      const res = await axios.get(`${API}/api/patient/profile?uid=${cred.user.uid}`);
+      setPatient(res.data);
+    } catch (profileErr) {
+      console.warn('Profile fetch failed (API may be unavailable):', profileErr.message);
+      // onAuthStateChanged will retry when context re-mounts
+    }
+    return { success: true };
   }
 
   async function loginWithGoogle() {

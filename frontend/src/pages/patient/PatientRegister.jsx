@@ -93,7 +93,12 @@ export default function PatientRegister() {
       toast.success('Welcome to DocNest!');
       navigate('/dashboard');
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Registration failed');
+      if (!err.response) {
+        // Network error — backend not reachable (e.g. no backend on Vercel)
+        toast.error('Server unavailable. Your Firebase account was created but profile could not be saved. Please contact support.');
+      } else {
+        toast.error(err.response?.data?.error || 'Registration failed');
+      }
     }
     setLoading(false);
   }

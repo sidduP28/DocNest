@@ -34,18 +34,29 @@ export function HospitalAuthProvider({ children }) {
   }, []);
 
   async function login(email, password) {
+    // Step 1: Firebase auth
+    let cred;
     try {
-      const cred = await signInWithEmailAndPassword(auth, email, password);
+      cred = await signInWithEmailAndPassword(auth, email, password);
+    } catch (err) {
+      return { success: false, error: getFirebaseError(err.code) };
+    }
+    // Step 2: Fetch hospital profile
+    try {
       const res = await axios.get(`${API}/api/hospital/profile?uid=${cred.user.uid}`);
       sessionStorage.setItem('docnest_hospital_session', cred.user.uid);
       setFirebaseUser(cred.user);
       setHospital(res.data);
       return { success: true };
     } catch (err) {
+      // If profile fetch fails, still set firebase user and session
+      sessionStorage.setItem('docnest_hospital_session', cred.user.uid);
+      setFirebaseUser(cred.user);
       const msg = err.response?.status === 404
         ? 'No hospital account found with this email.'
-        : getFirebaseError(err.code);
-      return { success: false, error: msg };
+        : 'Logged in with Firebase, but profile could not be loaded.';
+      console.warn('Hospital profile fetch failed:', msg);
+      return { success: true }; // Let them in; profile loads on refresh via onAuthStateChanged
     }
   }
 
