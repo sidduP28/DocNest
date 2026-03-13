@@ -46,13 +46,13 @@ export function SocketProvider({ children }) {
   }, []);
 
   function joinRoom(userId) {
-    if (socketRef.current?.connected && userId) {
+    if (socketRef.current && userId) {
       socketRef.current.emit('joinRoom', { userId });
     }
   }
 
   function joinHospitalRoom(hospitalId) {
-    if (socketRef.current?.connected && hospitalId) {
+    if (socketRef.current && hospitalId) {
       socketRef.current.emit('joinHospitalRoom', { hospitalId });
     }
   }

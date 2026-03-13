@@ -19,7 +19,8 @@ export function PatientAuthProvider({ children }) {
         try {
           const res = await axios.get(`${API}/api/patient/profile?uid=${user.uid}`);
           setPatient(res.data);
-        } catch {
+        } catch (err) {
+          console.error('Session restore profile fetch failed:', err);
           setPatient(null);
         }
       } else {

@@ -3,7 +3,7 @@ import { usePatientAuth } from '../../context/PatientAuthContext';
 import { useHospitalAuth } from '../../context/HospitalAuthContext';
 
 export function PatientProtectedRoute({ children }) {
-  const { patient, loading } = usePatientAuth();
+  const { patient, firebaseUser, loading } = usePatientAuth();
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: '#f8fafc' }}>
@@ -14,7 +14,21 @@ export function PatientProtectedRoute({ children }) {
       </div>
     );
   }
-  if (!patient) return <Navigate to="/login" replace />;
+  
+  if (!firebaseUser) return <Navigate to="/login" replace />;
+  
+  if (firebaseUser && !patient) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-4 text-center" style={{ background: '#f8fafc' }}>
+        <h2 className="text-xl font-bold mb-2">Almost there!</h2>
+        <p className="text-gray-500 mb-4 text-sm max-w-sm">We securely verified your account, but couldn't fetch your profile right now (servers might be waking up).</p>
+        <button onClick={() => window.location.reload()} className="px-6 py-2 rounded-full text-white font-bold" style={{ background: '#4EB0C8' }}>
+          Reload Page
+        </button>
+      </div>
+    );
+  }
+
   return children;
 }
 
