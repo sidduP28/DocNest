@@ -64,6 +64,43 @@ export default function PatientDashboard() {
     return () => { off('bloodSOS', onBloodSOS); off('doctorEmergency', onDoctorEmergency); off('doctorReturned', onDoctorReturned); };
   }, [patient]);
 
+  // Polling fallback for Vercel Serverless (No WebSockets)
+  useEffect(() => {
+    let interval;
+    async function checkActiveRequests() {
+      if (!patient?.donorStatus) return;
+      try {
+        const res = await axios.get(`${API}/api/blood-requests/active`);
+        if (!res.data || res.data.length === 0) return;
+        
+        const req = res.data.find(r => 
+          r.bloodGroupNeeded === patient.bloodGroup &&
+          haversine(r.hospitalLocation.lat, r.hospitalLocation.lng, patient.location?.lat, patient.location?.lng) <= 25 &&
+          !r.respondingDonors.some(d => d.userId === patient._id)
+        );
+        
+        if (req && !bloodSOS) {
+          setBloodSOS({
+            requestId: req._id,
+            hospitalName: req.hospitalName,
+            hospitalLocation: req.hospitalLocation,
+            bloodGroup: req.bloodGroupNeeded,
+            unitsNeeded: req.unitsNeeded,
+            urgencyLevel: req.urgencyLevel,
+            distance: Math.round(haversine(req.hospitalLocation.lat, req.hospitalLocation.lng, patient.location?.lat, patient.location?.lng) * 10) / 10,
+            department: req.department,
+          });
+        }
+      } catch (err) {}
+    }
+    
+    if (patient?.donorStatus) {
+      checkActiveRequests();
+      interval = setInterval(checkActiveRequests, 10000); // Poll every 10s
+    }
+    return () => clearInterval(interval);
+  }, [patient, bloodSOS]);
+
   async function handleCheckin(apptId) {
     try {
       const token = await getToken();

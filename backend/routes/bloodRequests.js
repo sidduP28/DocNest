@@ -103,21 +103,23 @@ router.patch('/:id/verify', verifyHospToken, async (req, res) => {
     });
 
     const io = req.app.get('io');
-    for (const donor of nearbyDonors) {
-      const dist = haversine(
-        request.hospitalLocation.lat, request.hospitalLocation.lng,
-        donor.location.lat, donor.location.lng
-      );
-      io.to(`user:${donor._id}`).emit('bloodSOS', {
-        requestId: request._id,
-        hospitalName: request.hospitalName,
-        hospitalLocation: request.hospitalLocation,
-        bloodGroup: request.bloodGroupNeeded,
-        unitsNeeded: request.unitsNeeded,
-        urgencyLevel: request.urgencyLevel,
-        distance: Math.round(dist * 10) / 10,
-        department: request.department,
-      });
+    if (io) {
+      for (const donor of nearbyDonors) {
+        const dist = haversine(
+          request.hospitalLocation.lat, request.hospitalLocation.lng,
+          donor.location.lat, donor.location.lng
+        );
+        io.to(`user:${donor._id}`).emit('bloodSOS', {
+          requestId: request._id,
+          hospitalName: request.hospitalName,
+          hospitalLocation: request.hospitalLocation,
+          bloodGroup: request.bloodGroupNeeded,
+          unitsNeeded: request.unitsNeeded,
+          urgencyLevel: request.urgencyLevel,
+          distance: Math.round(dist * 10) / 10,
+          department: request.department,
+        });
+      }
     }
 
     return res.json({ success: true, notifiedCount: nearbyDonors.length, request });
@@ -144,12 +146,14 @@ router.patch('/:id/respond', verifyToken, async (req, res) => {
     }
 
     const io = req.app.get('io');
-    io.to(`hospital:${request.hospitalId}`).emit('donorConfirmed', {
-      requestId: request._id,
-      donorFirstName: userName.split(' ')[0],
-      etaMinutes: etaMinutes || 15,
-      totalResponding: request.respondingDonors.length,
-    });
+    if (io) {
+      io.to(`hospital:${request.hospitalId}`).emit('donorConfirmed', {
+        requestId: request._id,
+        donorFirstName: userName.split(' ')[0],
+        etaMinutes: etaMinutes || 15,
+        totalResponding: request.respondingDonors.length,
+      });
+    }
 
     return res.json({ success: true });
   } catch (err) {
@@ -171,14 +175,16 @@ router.patch('/:id/arrived', verifyToken, async (req, res) => {
     await request.save();
 
     const io = req.app.get('io');
-    const payload = {
-      requestId: request._id,
-      donorFullName: donor.userName,
-      donorPhone: donor.userPhone,
-      donorBloodGroup: donor.userBloodGroup,
-    };
-    io.to(`hospital:${request.hospitalId}`).emit('donorArrived', payload);
-    io.to(`user:${userId}`).emit('donorArrived', payload);
+    if (io) {
+      const payload = {
+        requestId: request._id,
+        donorFullName: donor.userName,
+        donorPhone: donor.userPhone,
+        donorBloodGroup: donor.userBloodGroup,
+      };
+      io.to(`hospital:${request.hospitalId}`).emit('donorArrived', payload);
+      io.to(`user:${userId}`).emit('donorArrived', payload);
+    }
 
     return res.json({ success: true });
   } catch (err) {
@@ -213,7 +219,9 @@ router.patch('/:id/fulfill', verifyHospToken, async (req, res) => {
           },
         });
         const io = req.app.get('io');
-        io.to(`user:${uid}`).emit('requestFulfilled', { requestId: request._id });
+        if (io) {
+          io.to(`user:${uid}`).emit('requestFulfilled', { requestId: request._id });
+        }
       }
     }
 

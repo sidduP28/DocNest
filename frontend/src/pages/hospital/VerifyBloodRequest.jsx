@@ -58,6 +58,53 @@ export default function VerifyBloodRequest() {
     return () => { off('donorConfirmed', onDonorConfirmed); off('donorArrived', onDonorArrived); };
   }, [requestId]);
 
+  // Polling fallback for Vercel Serverless (No WebSockets)
+  useEffect(() => {
+    let interval;
+    async function fetchDonors() {
+      if (phase !== 'active' || !hospital?._id) return;
+      try {
+        const token = await getToken();
+        // Since we don't have a single-request GET endpoint, fetch hospital requests & find it
+        const res = await axios.get(`${API}/api/blood-requests/hospital/${hospital._id}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const reqData = res.data.find(r => r._id === requestId);
+        if (reqData && reqData.respondingDonors) {
+          const mappedDonors = reqData.respondingDonors.map(d => ({
+            requestId: reqData._id,
+            donorFirstName: d.userName.split(' ')[0],
+            donorFullName: d.userName,
+            donorPhone: d.userPhone,
+            donorBloodGroup: d.userBloodGroup,
+            etaMinutes: d.etaMinutes,
+            hasArrived: d.hasArrived,
+            userId: d.userId
+          }));
+          
+          // Only update state if length changed or arrival status changed to prevent excessive re-renders
+          setDonors(prev => {
+            if (prev.length !== mappedDonors.length) return mappedDonors;
+            const arrivalChanged = mappedDonors.some((md, i) => md.hasArrived !== prev[i]?.hasArrived);
+            if (arrivalChanged) {
+              const newlyArrived = mappedDonors.find((md, i) => md.hasArrived && !prev[i]?.hasArrived);
+              if (newlyArrived) toast.success(`${newlyArrived.donorFullName} has arrived at the hospital!`);
+              return mappedDonors;
+            }
+            return prev;
+          });
+        }
+      } catch (err) {}
+    }
+
+    if (phase === 'active') {
+      fetchDonors();
+      interval = setInterval(fetchDonors, 5000); // Poll every 5s
+    }
+    return () => clearInterval(interval);
+  }, [phase, hospital?._id, requestId]);
+
+
   const mins = String(Math.floor(timeLeft / 60)).padStart(2, '0');
   const secs = String(timeLeft % 60).padStart(2, '0');
 
